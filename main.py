@@ -13,7 +13,7 @@ class Server:
             print("Failed")
             return
         self.serverSocket.bind(('localhost', portNumber))
-        self.serverSocket.listen(50)
+        self.serverSocket.listen(200)
         self.telemetryFlag = telemetryFlag
         self.blacklistArray = blacklistArray
         self.processSemaphore = threading.Semaphore(8)
@@ -22,7 +22,6 @@ class Server:
     def startServer(self):
         while True:
             conn, addr = self.serverSocket.accept()
-            self.processSemaphore.acquire()
             thread = threading.Thread(name = str(addr), target = self.handleConnection, 
             args = (conn, addr))
             thread.setDaemon(True)
@@ -46,6 +45,7 @@ class Server:
         return
             
     def handleConnection(self, conn, clientAddr):
+        self.processSemaphore.acquire()
         try:
             data = conn.recv(1024)
             if not data:
@@ -54,6 +54,7 @@ class Server:
             firstLine = splitdata[0].decode("utf-8")
             method, websitetoken, httpVersion = firstLine.split(' ')
             if method != "CONNECT":
+                print(f'{method} not supported')
                 self.sendBadRequest(conn, httpVersion)
                 conn.close()
                 self.processSemaphore.release()
@@ -86,7 +87,7 @@ class Server:
         totalBytes = 0
         startTime = time.time()
         while not toClose:
-            rlist, _, xlist = select.select([conn, websiteSocket], [], [conn, websiteSocket], 0.5)
+            rlist, _, xlist = select.select([conn, websiteSocket], [], [conn, websiteSocket], 5)
             if xlist or not rlist:
                 break
             for r in rlist:
